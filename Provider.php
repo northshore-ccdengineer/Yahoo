@@ -29,7 +29,7 @@ class Provider extends AbstractProvider
             $this->with(['openid2_realm' => $parseUrl['scheme'].'://'.$parseUrl['host']]);
         }
 
-        return $this->buildAuthUrlFromBase('https://api.login.yahoo.com/oauth2/request_auth', $state);
+        return $this->buildAuthUrlFromBase('https://auth.login.yahoo.co.jp/yconnect/v2/authorization', $state);
     }
 
     /**
@@ -37,7 +37,7 @@ class Provider extends AbstractProvider
      */
     protected function getTokenUrl()
     {
-        return 'https://api.login.yahoo.com/oauth2/get_token';
+        return 'https://auth.login.yahoo.co.jp/yconnect/v2/token';
     }
 
     /**
@@ -45,7 +45,7 @@ class Provider extends AbstractProvider
      */
     protected function getUserByToken($token)
     {
-        $response = $this->getHttpClient()->get('https://api.login.yahoo.com/openid/v1/userinfo', [
+        $response = $this->getHttpClient()->get('https://userinfo.yahooapis.jp/yconnect/v2/attribute', [
             'headers' => [
                 'Authorization' => 'Bearer '.$token,
             ],
