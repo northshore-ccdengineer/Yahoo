@@ -1,5 +1,10 @@
 <?php
 
+/**
+ * Laravel Socialite用のYahoo JAPAN ID(YConnect)ドライバ実装
+ * https://qiita.com/zaburo/items/25ebbb3d1b580a0df9f3
+ */
+
 namespace SocialiteProviders\Yahoo;
 
 use Illuminate\Support\Arr;
@@ -16,50 +21,49 @@ class Provider extends AbstractProvider
     /**
      * {@inheritdoc}
      */
-    protected $scopes = ['openid2'];
+    protected $scopes = [
+        'openid',
+        'profile',
+        'email',
+    ];
 
-    /**
-     * Note: When redirectUrl is OOB, it will not add openid2_realm in params
-     * {@inheritdoc}
-     */
     protected function getAuthUrl($state)
     {
-        $parseUrl = parse_url($this->redirectUrl);
-        if (array_key_exists('scheme', $parseUrl) && array_key_exists('host', $parseUrl)) {
-            $this->with(['openid2_realm' => $parseUrl['scheme'].'://'.$parseUrl['host']]);
-        }
-
         return $this->buildAuthUrlFromBase('https://auth.login.yahoo.co.jp/yconnect/v2/authorization', $state);
     }
 
-    /**
-     * {@inheritdoc}
-     */
     protected function getTokenUrl()
     {
         return 'https://auth.login.yahoo.co.jp/yconnect/v2/token';
     }
 
-    /**
-     * {@inheritdoc}
-     */
-    protected function getUserByToken($token)
+    public function getAccessToken($code)
     {
-        $response = $this->getHttpClient()->get('https://userinfo.yahooapis.jp/yconnect/v2/attribute', [
+        $basic_auth_key = base64_encode($this->clientId . ":" . $this->clientSecret);
+
+        $response = $this->getHttpClient()->post($this->getTokenUrl(), [
             'headers' => [
-                'Authorization' => 'Bearer '.$token,
+                'Authorization' => 'Basic ' . $basic_auth_key,
+            ],
+            'form_params' => [
+                'grant_type' => 'authorization_code',
+                'code' => $code,
+                'redirect_uri' => $this->redirectUrl
             ],
         ]);
-
-        return json_decode($response->getBody()->getContents(), true);
+        return $response->getBody()->getContents();
     }
 
-    /**
-     * Maps Yahoo object to User Object.
-     *
-     * Note: To have access to e-mail, you need to request "Profiles (Social Directory) - Read/Write Public and Private"
-     * {@inheritdoc}
-     */
+    protected function getUserByToken($token)
+    {
+        $response = $this->getHttpClient()->get('https://userinfo.yahooapis.jp/yconnect/v2/attribute?schema=openid', [
+            'headers' => [
+                'Authorization' => 'Bearer ' . $token,
+            ],
+        ]);
+        return json_decode($response->getBody(), true);
+    }
+
     protected function mapUserToObject(array $user)
     {
         return (new User())->setRaw($user)->map([
@@ -68,16 +72,6 @@ class Provider extends AbstractProvider
             'name'     => trim(sprintf('%s %s', Arr::get($user, 'given_name'), Arr::get($user, 'family_name'))),
             'email'    => Arr::get($user, 'email'),
             'avatar'   => Arr::get($user, 'picture'),
-        ]);
-    }
-
-    /**
-     * {@inheritdoc}
-     */
-    protected function getTokenFields($code)
-    {
-        return array_merge(parent::getTokenFields($code), [
-            'grant_type' => 'authorization_code',
         ]);
     }
 }
