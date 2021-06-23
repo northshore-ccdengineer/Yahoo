@@ -27,6 +27,8 @@ class Provider extends AbstractProvider
         'email',
     ];
 
+    protected $scopeSeparator = ' ';
+
     protected function getAuthUrl($state)
     {
         return $this->buildAuthUrlFromBase('https://auth.login.yahoo.co.jp/yconnect/v2/authorization', $state);
@@ -35,23 +37,6 @@ class Provider extends AbstractProvider
     protected function getTokenUrl()
     {
         return 'https://auth.login.yahoo.co.jp/yconnect/v2/token';
-    }
-
-    public function getAccessToken($code)
-    {
-        $basic_auth_key = base64_encode($this->clientId . ":" . $this->clientSecret);
-
-        $response = $this->getHttpClient()->post($this->getTokenUrl(), [
-            'headers' => [
-                'Authorization' => 'Basic ' . $basic_auth_key,
-            ],
-            'form_params' => [
-                'grant_type' => 'authorization_code',
-                'code' => $code,
-                'redirect_uri' => $this->redirectUrl
-            ],
-        ]);
-        return $response->getBody()->getContents();
     }
 
     protected function getUserByToken($token)
